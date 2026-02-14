@@ -1,7 +1,5 @@
 # --- Custom Folders ---
 # Exclude everything inside these specific directories
-data/
-results/
 extra/
 
 # --- Python Environment & Bytecode ---
