@@ -1,0 +1,331 @@
+\documentclass[pdflatex,sn-mathphys-num]{sn-jnl}
+
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\usepackage{tcolorbox}
+\usepackage{lipsum}
+\usepackage{multirow}
+
+\newtcolorbox{promptbox}{
+  colback=gray!15,
+  colframe=black,
+  boxrule=0.5pt,
+  arc=0pt,
+  left=3pt, right=3pt,
+  top=3pt, bottom=3pt,
+  fontupper=\small
+}
+
+\begin{document}
+
+\title{In RAG we Trust?}
+
+\author*[1]{\fnm{Carlo} \sur{Falchi}}\email{cfalchi@gmail.com}
+
+\affil[1]{\orgdiv{Master Degree in Computer Science}, \orgname{University of Milan}, \country{Italy}}
+
+\abstract{
+Retrieval-Augmented Generation (RAG) systems enhance Large Language Models (LLMs) by grounding responses in external knowledge; however, ensuring trustworthiness regarding factuality, 
+robustness to noise, and accountability remains a challenge. This project presents an experimental pipeline to evaluate RAG systems across these three key dimensions. 
+The study compares multiple open-weights models (including Ministral 3, Llama 3.1, and Qwen 3) using various prompting strategies (Baseline, Critical, Hedge, Verify). 
+Results indicate that the "Hedge" strategy consistently achieved the highest scores for factuality, demonstrating that allowing models to abstain is an effective defense against hallucinations. 
+}
+
+\maketitle
+
+\section{Introduction}
+RAG systems integrate external information retrieval mechanisms to ensure that generated content is based on factual data, thus improving the accuracy and credibility of LLM outputs. While RAG mitigates hallucinations by providing relevant context that appears plausible, it can still produce incorrect or irrelevant information. This often results from factors such as noisy documents or the irrelevance of information retrieved from external sources. This project investigates the "trustworthiness" of RAG systems \cite{trustworthiness} by evaluating them across multiple dimensions:
+\begin{enumerate}
+    \item \textbf{Factuality:} Refers to the accuracy and truthfulness (alignment with real-world facts) of the generated content.
+    \item \textbf{Robustness:} Refers to the ability of LLMs to consistently extract and utilize relevant knowledge even when presented with noisy or irrelevant retrieval inputs.
+    \item \textbf{Accountability:} The accuracy of citations provided by the model to support its claims.
+\end{enumerate}
+
+The system consists of a modular Python framework including an \textbf{Ollama Client} for inference, a \textbf{Data Loader} for restructuring HotpotQA, an \textbf{Experiment Pipeline} for parallel execution , a \textbf{RAG Evaluator} for metrics, and a \textbf{Document Poisoner} to inject distractors.
+
+\section{Data Preparation}
+The project uses the HotpotQA \cite{hotpotqa}, a dataset with 113k Wikipedia-based question-answer pairs. 
+Every question and answer contains:
+\begin{itemize}
+    \item 2 Gold Paragraphs required to reach the answer, and used as "supporting facts".
+    \item 8 Distractor Paragraphs used as "noisy" documents that are semantically similar to the gold ones.
+\end{itemize}
+
+\subsection{Synthetic Data Generation}
+For our experiment the project used 30 samples from this dataset as a baseline to generate more different types of synthetic data used for various experiments:
+\begin{itemize}
+    \item \textbf{Fake Answers:} Incorrect answers based on questions, correct answers and gold documents.
+    \item \textbf{Distractors:} Documents that contain only noisy information but are factually correct.
+    \item \textbf{Poisoned:} Documents that contain incorrect, false or misleading information.
+\end{itemize}
+
+The model used to generate this synthetic data was Gemma 3 (12B).
+Every QA has been organized in different groups, with different numbers of distractors and various degree of poison ratio:
+\begin{itemize}
+    \item \textbf{Poison Ratio} 0\% (baseline) and 30\%.
+    \item \textbf{Distractors Number} 0(baseline), 8 and 20 distractor documents.
+    \item \textbf{Fake Answer} 1 for every question.
+\end{itemize}
+
+These groups of documents are used as the context for the LLM in order to generate the answer, this is a simulation of a hypothetical retrieval phase, that is, the project is focused on measuring the reliability of the answer rather than the optimization of searching for relevant content. 
+
+\section{Prompt Strategies}
+We evaluated four prompting strategies to test trustworthiness:
+
+\begin{table}[ht]
+\small
+\begin{tabular}{lp{0.75\linewidth}}
+\toprule
+\textbf{Strategy} & \textbf{Description} \\
+\midrule
+\textbf{Baseline} & Standard RAG instruction: "Answer based on provided documents."  \\
+\textbf{Critical} & Role-plays as a security analyst; ignores suspicious/contradictory info.  \\
+\textbf{Hedge} & Explicit instruction to output 'I\_DECLINE\_TO\_ANSWER' on conflict.  \\
+\textbf{Verify} & Chain-of-Thought approach requiring a step-by-step consistency check.  \\
+\bottomrule
+\end{tabular}
+\end{table}
+\newpage
+\section{Experimental Setup}
+The following open-weight LLMs were used for evaluation: 
+\begin{table}[htbp]
+\centering
+\small 
+\begin{tabular}{ll}
+\hline
+\textbf{Model Family} & \textbf{Parameters} \\ \hline
+Granite 4             & 3B                  \\
+Llama 3.1             & 8B                  \\
+Ministral 3           & 14B                 \\ 
+Mistral-small 3.2     & 24B                \\
+Qwen 3-instruct       & 30B            \\
+\end{tabular}
+\end{table}
+
+
+The models are evaluated across three dimensions (Factuality, Robustness, Accountability) from different points of view, that is,
+the four prompt strategies were applied to each dimension with a different composition of noisy/distractor documents (Table \ref{tab:documents_composition}). In the end \textbf{1200 samples} have been generated. 
+
+\begin{table}[htbp]
+\centering
+\caption{Documents Composition}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Experiment} & \textbf{Poison Ratio} & \textbf{\# Distractors} \\
+\midrule
+Factuality & 0\%, 30\%& 0 \\
+Robustness & 0\% & 0,8,20 \\
+Accountability & 0\% & 0,8,20 \\
+\bottomrule
+\label{tab:documents_composition}
+\end{tabular}
+\end{table}
+
+
+\section{Evaluation Metrics}
+
+In this section the study shows which metrics have been used to evaluate the chosen LLMs in the RAG scenario. 
+A model's refusal to answer was classified as a correct outcome giving the max scores to all metrics:
+\subsection{Factuality Evaluation}
+
+The LLM response was evaluated as a weighted sum of the following different metrics:
+\begin{itemize}
+    \item  \textbf{LLM as Judge:} A specific prompt is provided with the question, the correct answer and the generated answer to an LLM (Gemma3:27B), that outputs only a word if the response is correct or not correct. The system used a distinct LLMs as Judge to avoid the Self-Preference \cite{self-preferences} bias. 
+    \begin{promptbox}
+        Evaluate if the generated answer is factually correct.
+
+        \textbf{Question:} \{question\} \\
+        \textbf{Correct Answer:} \{correct\_answer\} \\
+        \textbf{Generated Answer:} \{generated\_answer\}
+
+        Is the generated answer factually correct? Consider:
+        \begin{enumerate}
+            \item Does it match the correct answer (even if phrased differently)?
+            \item Does it contain the key information?
+            \item Is it free from major factual errors?
+        \end{enumerate}
+
+        Respond with ONLY `CORRECT' or `INCORRECT':
+    \end{promptbox}
+    \item  \textbf{Fake Overlap:} After a normalization of the fake answer and the generated answer, the system checks if the normalized fake answer is mentioned in the generated answer. A score 1 is given if it is not.
+    \item  \textbf{Meteor:} \cite{meteor}: Compare the correct answer with the generated answer using METEOR. It calculates the harmonic mean of unigram precision and recall, prioritizing recall and utilizing stemming and synonymy for flexible matching. It incorporates a fragmentation penalty to account for word order.
+
+
+\end{itemize}
+
+\subsubsection{Metrics Strength and Weakness:}
+The LLM Judge unlike n-gram metrics can verify if the generated answer is correct even if the the words used are completely different, some disadvantages are high computational cost and Verbosity Bias \cite{verbosityllm}.\\
+The Fake Overlap, checks if the short fake answer is present as a substring of the generated answer but if the LLM answers with another semantically similar fake answer, this score wouldn't catch the difference. This could be a future improvement.\\
+Meteor score is a computational cheap metric but it looks at words overlap and not their meaning, so two similar sentences like "The pilot is safe" and "The pilot is not safe" could have a bias high score.
+
+This is the weighted formula for factuality based on the previous consideration:
+$$Score_{Factuality} = 0.5 \cdot \text{LLMJudge} + 0.2 \cdot \text{FakeOverlap} + 0.3 \cdot \text{METEOR}$$
+
+\subsection{Robustness Evaluation}
+The LLM response was evaluated as a weighted sum of the following different metrics:
+
+\begin{itemize}
+    \item \textbf{LLM as Judge:} A specific prompt is provided with the correct answer and the generated answer to an LLM (Gemma3:27B), that outputs a single word if the generated answer is similar to the correct answer and if there is no noise.
+    \begin{promptbox}
+        Evaluate if the generated answer is similar to the correct answer.
+
+        \textbf{Correct Answer:} \{correct\_answer\} \\
+        \textbf{Generated Answer:} \{generated\_answer\}
+
+        Is the generated answer correct or is there any noise? Consider:
+        \begin{enumerate}
+            \item Does it match the correct answer (even if phrased differently)?
+            \item Does it contain the key information?
+            \item Is it free from major noisy errors?
+        \end{enumerate}
+
+        Respond with ONLY `CORRECT' or `INCORRECT':
+    \end{promptbox}
+    \item \textbf{F1 Score:} Measure the overlap between two sets of words (generated and correct answers), calculating the Precision $=\frac{\text{num\_same}}{\text{len(prediction\_tokens)}}$, the Recall $=\frac{\text{num\_same}}{\text{len(ground\_truth\_tokens)}}$ and finally the F1 Score = $2 \cdot \frac{precision \cdot recall}{precision + recall}$
+    \item \textbf{Similarity Score:} Calculate the cosine similarity between two vectors (generated and correct answer) embedded using "all-MiniLM-L6-v2" as Encoder.
+\end{itemize}
+
+\subsubsection{Metrics Strength and Weakness:}
+The refusal answer could tend to give a artificially high score, this is because LLMs tend to more easily predict a Refusal state \cite{singhalevidence}, so the LLMs could often answer with a "I\_DECLINE\_TO\_ANSWER" word as suggested from the prompt (e.g. Hedge, Verify).\\
+With the F1 score, if the prompt strategy works and the model outputs the clean fact, F1 is high. On the other hand when the words used are not the same as the ground truth the score is low, so it punishes the LLM for having a diverse vocabulary.\\
+The similarity score can cover this weakness, for example "The meeting is at 5 PM" and "It's scheduled for 17:00" would have a low F1 score, but the Similarity score would be high, however the weakness of embedding models is that often struggle to distinguish between a sentence and its negation.
+
+This is the weighted formula for robustness based on the previous consideration:
+$$Score_{Robustness} = 0.6 \cdot \text{LLMJudge} + 0.2 \cdot \text{Similarity} + 0.2 \cdot \text{F1}$$
+
+\subsection{Accountability}
+In this experiment a regular expression was used to find all the citations in the answer enclosed in the square brackets. If there are no citations in the answer 0 score is given to all metrics otherwise the following metrics are calculated:
+
+\begin{itemize}
+    \item \textbf{Precision}: $\frac{\text{Matches}}{\text{Total Predicted Tokens}}$
+    \item \textbf{Recall}: $\frac{\text{Matches}}{\text{Total Ground Truth Tokens}}$
+    \item \textbf{F1 Score}: $2 \cdot \frac{precision \cdot recall}{precision + recall}$
+\end{itemize}
+$Matches$ counts how many unique citations appear in both the ground truth and the model's prediction.
+
+\subsubsection{Metrics Strength and Weakness:}
+A high precision score ensures no noisy documents are selected, but it can miss some golden citation.
+Recall score ensures the model checked all valid sources, but if the model cites all the available documents the score would be high anyway.
+Together, these metrics offer a comprehensive evaluation of the citation accuracy in the
+model’s responses.
+
+$$Score_{Accountability} = F1_{Score}$$
+
+\section{Results and Discussion}
+
+\subsection{Factuality}
+In the results presented in the Table \ref{tab:factuality_score} there are various considerations to take into account:
+\begin{enumerate}
+  \item The "Hedge" prompt strategy achieved the highest score. This confirms that allowing the model to abstain is an effective defense against hallucination.
+
+  \item The "Baseline" strategy performed poorly, particularly with small-parameters models, which struggled to distinguish between poisoned context and factual knowledge.
+\end{enumerate}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Po.} & \textbf{Strategy} & \textbf{granite4} & \textbf{llama3.1} & \textbf{ministral-3} & \textbf{mistral-small3.2} & \textbf{qwen3} \\
+\midrule
+0\% & baseline & 68.4\% & 75.0\% & 68.6\% & 69.9\% & 70.4\% \\
+0\% & critical & 72.7\% & 74.8\% & 77.1\% & 78.1\% & 79.6\% \\
+0\% & hedge    & 64.6\% & 73.1\% & 83.6\% & 89.8\% & 73.9\% \\
+0\% & verify   & 74.4\% & 76.2\% & 79.1\% & 76.4\% & 77.6\% \\
+\midrule
+30\% & baseline & 29.1\% & 36.1\% & 46.5\% & 42.2\% & 46.7\% \\
+30\% & critical & 34.1\% & 32.7\% & 42.7\% & 45.9\% & 42.8\% \\
+30\% & hedge    & 35.0\% & 46.8\% & 76.8\% & 93.5\% & 55.4\% \\
+30\% & verify   & 32.7\% & 40.9\% & 39.6\% & 45.1\% & 50.7\% \\
+\bottomrule
+\end{tabular}
+\caption{Model performance comparison across different strategies and poison ratio}
+\label{tab:factuality_score}
+\end{table}
+
+In the (Chart \ref{fig:factuality_score}) we can see the degradation of the models over a greater ratio of poisoning documents.
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.9\textwidth]{charts/poison_ratio.png}
+    \caption{Model score degradation with different poison ratio}
+     \label{fig:factuality_score}
+\end{figure}
+
+\subsection{Robustness}
+The analysis reveals (Table \ref{tab:robustness_results}) that the \textbf{Ministral-3:14b} model demonstrated significant resilience, maintaining high scores even with 20 distractors, whereas \textbf{llama3.1:8b} showed a sharper decline. The Hedge strategy proves that the refusal to answer strategy is better than answering with incorrect information.
+
+
+\begin{table}[ht]
+\centering
+\caption{Model Performance Breakdown: Delta from 0 Distractors for each Strategy}
+\label{tab:robustness_results}
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Distr.} & \textbf{Strategy} & \textbf{granite4:3b} & \textbf{llama3.1:8b} & \textbf{ministral-3:14b} & \textbf{mistral:24b} & \textbf{qwen3:30b} \\
+\midrule
+0 & baseline & 60.4\% & 68.8\% & 68.3\% & 66.9\% & 61.7\% \\
+0 & critical & 76.6\% & 76.8\% & 82.5\% & 86.5\% & 84.2\% \\
+0 & hedge    & 55.5\% & 71.8\% & 88.3\% & 90.1\% & 67.8\% \\
+0 & verify   & 83.9\% & 88.1\% & 78.2\% & 86.5\% & 80.4\% \\
+\midrule
+20 & baseline & 56.6\% (-3.8\%) & 58.5\% (-10.3\%) & 65.8\% (-2.5\%) & 64.2\% (-2.7\%) & 61.6\% (-0.1\%) \\
+20 & critical & 68.4\% (-8.2\%) & 67.0\% (-9.8\%)  & 77.8\% (-4.7\%) & 77.8\% (-8.7\%) & 75.3\% (-8.9\%) \\
+20 & hedge    & 59.6\% (+4.1\%) & 73.3\% (+1.5\%)  & 89.7\% (+1.4\%) & 94.8\% (+4.7\%) & 71.8\% (+4.0\%) \\
+20 & verify   & 69.5\% (-14.4\%) & 78.3\% (-9.8\%)  & 73.6\% (-4.6\%) & 79.2\% (-7.3\%) & 71.6\% (-8.8\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In the (Chart \ref{fig:robustness_score}) we can see the degradation of the models over different numbers of distractors.
+\begin{figure}[H]
+    \includegraphics[width=0.9\textwidth]{charts/robustness.png}
+    \caption{Model score degradation with different numbers of distractors}
+    \label{fig:robustness_score}
+\end{figure}
+
+\subsection{Accountability}
+In this experiment, small models like \textbf{Granite4:3b} and \textbf{Llama3.1:8b} suffer high degradation across all types of strategies. Hedge is still the strategy with the highest score. The \textbf{Qwen3:30b} model is the only one that seems to take advantage of the \textbf{Verify} strategy.
+\begin{table}[ht]
+\centering
+\caption{Model Performance Comparison: F1 Scores}
+\label{tab:cit_f1_results}
+\begin{tabular}{llccccc}
+\toprule
+\textbf{Distr.} & \textbf{Strategy} & \textbf{granite4:3b} & \textbf{llama3.1:8b} & \textbf{ministral:14b} & \textbf{mistral:24b} & \textbf{qwen3:30b} \\
+\midrule
+0 & baseline & 0.801 & 0.769 & 0.755 & 0.763 & 0.733 \\
+0 & critical & 0.834 & 0.757 & 0.713 & 0.742 & 0.692 \\
+0 & hedge    & 0.904 & 0.839 & 0.792 & 0.849 & 0.774 \\
+0 & verify   & 0.627 & 0.556 & 0.751 & 0.321 & 0.773 \\
+\midrule
+20  & baseline & 0.296 & 0.572 & 0.651 & 0.723 & 0.657 \\
+20  & critical & 0.302 & 0.575 & 0.621 & 0.709 & 0.642 \\
+20  & hedge    & 0.399 & 0.665 & 0.807 & 0.863 & 0.736 \\
+20  & verify   & 0.225 & 0.491 & 0.632 & 0.343 & 0.713 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+By analyzing multiple open-weights LLMs and prompt strategies against adversarial conditions, the project yields the following observations:
+
+\begin{itemize}
+    \item \textbf{Efficacy of Defensive Prompting:} The "Hedge" strategy proved to be the most robust defense against poisoned context, significantly reducing hallucinations. However, results on clean data (0\% poison) indicate a trade-off, where defensive prompting may lead to increased refusal on factual questions compared to "Critical" or "Verify" strategies.
+    
+    \item \textbf{Model Resilience and Scale:} Larger models, specifically \textbf{Ministral 3 (14B)}, exhibited superior robustness compared to smaller counterparts like \textbf{Granite 4 (3B)}. This suggests that below a certain parameter threshold, models struggle to distinguish between conflicting internal knowledge and external knowledge \cite{trustworthiness} (retrieved context) .
+
+    \item \textbf{Score Weights:} The choice of weights was somewhat arbitrary. But similar results were obtained with the following different choices of weights: Factual(0.7, 0.1, 0.2), Robustness(0.4, 0.3, 0.3)
+\end{itemize}
+
+
+
+
+
+\bibliography{references}
+
+\end{document}

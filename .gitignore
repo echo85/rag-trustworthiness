@@ -1,0 +1,93 @@
+# --- Custom Folders ---
+# Exclude everything inside these specific directories
+data/
+results/
+extra/
+
+# --- Python Environment & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints
+
+# --- Distribution / Packaging ---
+bin/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Unit test / Coverage reports ---
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# --- IDEs & OS Files ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+ipynb_checkpoints
+*/.ipynb_checkpoints/*
+# Core LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fmt
+*.fot
+*.cb
+*.cb2
+*.lb
+
+# Bibliography auxiliary files (BibTeX/Biber)
+*.bbl
+*.bcf
+*.blg
+*.-blx.aux
+*.run.xml
+
+# Index and Glossary files
+*.idx
+*.ind
+*.ilg
+*.gls
+*.glo
+*.glg
+*.glsdefs
+*.ist
+
+# Build tool artifacts (latexmk, etc.)
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.pdfsync

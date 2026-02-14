@@ -1,0 +1,8 @@
+requests
+pandas
+tqdm
+sentence-transformers
+torch
+evaluate
+numpy
+rouge_score
