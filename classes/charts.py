@@ -494,6 +494,7 @@ class Charts:
     def plot_line_comparison(self, experiment_type=None):
         """
         Plot line charts comparing strategies within each model across different parameters.
+        Displays 2 models per row for better space utilization.
         
         Args:
             experiment_type: Optional filter for experiment type
@@ -523,78 +524,104 @@ class Charts:
             print("No metrics or models found")
             return
         
-        # Create a grid of subplots (rows=metrics, cols=models)
-        fig, axes = plt.subplots(n_metrics, n_models, 
-                                 figsize=(5*n_models, 4*n_metrics))
+        # Calculate grid layout: 2 models per row
+        ncols = 3
+        nrows = math.ceil(n_models / ncols)
         
-        if n_metrics == 1 and n_models == 1:
-            axes = np.array([[axes]])
-        elif n_metrics == 1:
-            axes = axes.reshape(1, -1)
-        elif n_models == 1:
-            axes = axes.reshape(-1, 1)
+        # Create subplots - one subplot per model
+        fig, axes = plt.subplots(nrows, ncols, figsize=(12, 5*nrows))
+        
+        # Flatten axes array for easier indexing
+        if nrows == 1 and ncols == 1:
+            axes = [axes]
+        elif nrows == 1 or ncols == 1:
+            axes = axes.flatten()
+        else:
+            axes = axes.flatten()
         
         # Color palette for strategies
         strategies = sorted(plot_data['strategy'].unique())
         colors = plt.cm.Set2(np.linspace(0, 1, len(strategies)))
         strategy_colors = dict(zip(strategies, colors))
         
-        for i, metric in enumerate(metrics):
-            for j, model in enumerate(models):
-                ax = axes[i, j]
-                
-                # Filter data for this metric and model
-                subset = plot_data[
-                    (plot_data['metric'] == metric) & 
-                    (plot_data['model'] == model)
-                ].copy()
-                
-                if subset.empty:
-                    ax.set_visible(False)
-                    continue
-                
-                # Sort by group_key for line plot
-                subset = subset.sort_values('group_key')
-                
-                # Plot line for each strategy
-                for strategy in strategies:
-                    strategy_data = subset[subset['strategy'] == strategy]
-                    if not strategy_data.empty:
-                        ax.plot(strategy_data['group_key'].values, 
-                               strategy_data['value'].values,
-                               marker='o', 
-                               label=strategy, 
-                               linewidth=2.5, 
-                               markersize=7,
-                               color=strategy_colors[strategy])
-                
-                ax.set_title(f'{model}\n{metric}', fontweight='bold', fontsize=10)
-                ax.set_xlabel('Parameter', fontweight='bold', fontsize=9)
-                ax.set_ylabel('Score', fontweight='bold', fontsize=9)
-                ax.legend(fontsize=8, loc='best')
-                ax.grid(True, alpha=0.3)
-                
-                # Format x-axis based on group_key type
-                x_values = subset['group_key'].unique()
-                if len(x_values) > 0:
-                    # Check if these are ratios (0-1) or counts (>1)
-                    if all(0 <= x <= 1 for x in x_values):
-                        # Poison ratios - format as percentages
-                        ax.xaxis.set_major_formatter(
-                            plt.FuncFormatter(lambda x, _: f'{x:.0%}')
-                        )
-                    else:
-                        # Distractor counts - format as integers
-                        ax.set_xticks(sorted(x_values))
-                        ax.set_xticklabels([str(int(x)) for x in sorted(x_values)])
-                
-                # Format y-axis as percentage for certain metrics
-                if metric in ['factuality', 'robustness']:
-                    ax.yaxis.set_major_formatter(
-                        plt.FuncFormatter(lambda y, _: f'{y:.0%}')
-                    )
+        # Style settings for metrics
+        metric_styles = {
+            'factuality': {'linestyle': '-', 'marker': 'o'},
+            'robustness': {'linestyle': '--', 'marker': 's'},
+            'accountability_f1': {'linestyle': '-.', 'marker': '^'}
+        }
         
-        title = 'Strategy Comparison by Model'
+        for idx, model in enumerate(models):
+            ax = axes[idx]
+            
+            # Filter data for this model
+            model_data = plot_data[plot_data['model'] == model].copy()
+            
+            if model_data.empty:
+                ax.set_visible(False)
+                continue
+            
+            # Plot each strategy with different metrics shown as different line styles
+            for strategy in strategies:
+                strategy_data = model_data[model_data['strategy'] == strategy]
+                
+                for metric in metrics:
+                    metric_data = strategy_data[strategy_data['metric'] == metric]
+                    
+                    if not metric_data.empty:
+                        # Sort by group_key
+                        metric_data = metric_data.sort_values('group_key')
+                        
+                        # Get style for this metric
+                        style = metric_styles.get(metric, {'linestyle': '-', 'marker': 'o'})
+                        
+                        # Create label with both strategy and metric
+                        label = f"{strategy} ({metric})" if n_metrics > 1 else strategy
+                        
+                        ax.plot(
+                            metric_data['group_key'].values,
+                            metric_data['value'].values,
+                            label=label,
+                            color=strategy_colors[strategy],
+                            linewidth=2.5,
+                            markersize=7,
+                            linestyle=style['linestyle'],
+                            marker=style['marker'],
+                            alpha=0.8
+                        )
+            
+            # Format the subplot
+            ax.set_title(f'{model}', fontweight='bold', fontsize=12)
+            ax.set_xlabel('Parameter', fontweight='bold', fontsize=10)
+            ax.set_ylabel('Score', fontweight='bold', fontsize=10)
+            ax.legend(fontsize=8, loc='best', framealpha=0.9)
+            ax.grid(True, alpha=0.3)
+            
+            # Format x-axis based on group_key type
+            x_values = model_data['group_key'].unique()
+            if len(x_values) > 0:
+                # Check if these are ratios (0-1) or counts (>1)
+                if all(0 <= x <= 1 for x in x_values):
+                    # Poison ratios - format as percentages
+                    ax.xaxis.set_major_formatter(
+                        plt.FuncFormatter(lambda x, _: f'{x:.0%}')
+                    )
+                else:
+                    # Distractor counts - format as integers
+                    ax.set_xticks(sorted(x_values))
+                    ax.set_xticklabels([str(int(x)) for x in sorted(x_values)])
+            
+            # Format y-axis as percentage if all metrics are percentage-based
+            if all(m in ['factuality', 'robustness'] for m in metrics):
+                ax.yaxis.set_major_formatter(
+                    plt.FuncFormatter(lambda y, _: f'{y:.0%}')
+                )
+        
+        # Hide unused subplots
+        for idx in range(n_models, len(axes)):
+            axes[idx].set_visible(False)
+        
+        title = 'Strategy Comparison by Model (2 per row)'
         if experiment_type:
             title += f' - {experiment_type.upper()}'
         plt.suptitle(title, fontsize=16, fontweight='bold')
@@ -873,7 +900,7 @@ class Charts:
         df_filtered['dimension'] = df_filtered['metric'].map(dimension_map)
         
         # Create figure with two subplots
-        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+        fig, axes = plt.subplots(1, 2, figsize=(16, 10))
         
         # Left: Strategy comparison
         pivot_strategy = df_filtered.groupby(['strategy', 'dimension'])['value'].mean().reset_index()
@@ -935,5 +962,20 @@ class Charts:
         axes[1].set_yticklabels(axes[1].get_yticklabels(), rotation=0)
         
         plt.suptitle('Performance Dimension Comparison', fontsize=16, fontweight='bold', y=1.02)
-        plt.tight_layout()
         plt.show()
+
+    def export_summary_statistics(self, output_file='summary_stats.csv'):
+        """Export summary statistics to CSV."""
+        if self.df is None or self.df.empty:
+            print("No data available.")
+            return None
+        
+        df = self.aggregate_results()
+        summary = df.groupby(['experiment', 'model', 'strategy', 'metric'])['value'].agg([
+            'mean', 'std', 'min', 'max', 'count'
+        ]).reset_index()
+        
+        summary.to_csv(output_file, index=False)
+        print(f"Summary statistics exported to {output_file}")
+        
+        return summary

@@ -319,7 +319,7 @@ By analyzing multiple open-weights LLMs and prompt strategies against adversaria
     
     \item \textbf{Model Resilience and Scale:} Larger models, specifically \textbf{Ministral 3 (14B)}, exhibited superior robustness compared to smaller counterparts like \textbf{Granite 4 (3B)}. This suggests that below a certain parameter threshold, models struggle to distinguish between conflicting internal knowledge and external knowledge \cite{trustworthiness} (retrieved context) .
 
-    \item \textbf{Score Weights:} The choice of weights was somewhat arbitrary. But similar results were obtained with the following different choices of weights: Factual(0.7, 0.1, 0.2), Robustness(0.4, 0.3, 0.3)
+    \item \textbf{Score Weights:} The choice of weights was somewhat arbitrary. But similar results were obtained with the following different choices of weights: Factual(0.7, 0.1, 0.2), Robustness(0.4, 0.3, 0.3). For the Robustness score, prioritize "LLM as Judge" reduces the degradation of the score when more distractors are present. This suggests that F1 and similarity tend to penalize correct long answers.
 \end{itemize}
 
 

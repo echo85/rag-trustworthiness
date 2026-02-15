@@ -52,8 +52,10 @@ The system compares four distinct prompting strategies:
     * Target Models: `granite4:3b`, `llama3.1:8b`, `ministral-3:14b`, `mistral-small3.2:24b`, `qwen3:30b-instruct` (they are configurables on cli_generation_parallel.py)
     * Judge/Poisoner Models: `gemma3:12b` (Poisoner), `gemma3:27b` (LLM Judge)
 
-Command to install the requirements + downloading llm and run the RAG Generation (Tested on Runpod.io with Nvidia A40 and 16 workers)
+Commands to install the requirements, downloading llm, run the RAG Generation and the Evaluation (Tested on Runpod.io with NVIDIA A40 and 16 workers)
 ```bash
 chmod +x ./install.sh
 install.sh 
+python cli_generation_parallel.py --workers 16
+python cli_evaluation.py --path=./results/results_20260213_211528_w_data_20260213_203716.json
 

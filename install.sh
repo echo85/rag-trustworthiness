@@ -28,5 +28,3 @@ ollama pull gemma3:27b
 
 echo "Installing pip dependencies"
 pip install -r requirements.txt
-
-python cli_generation_parallel.py --workers 16
